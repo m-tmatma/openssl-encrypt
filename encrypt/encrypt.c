@@ -1,10 +1,30 @@
 #include <stdio.h>
+#include <string.h>
 #include <openssl/conf.h>
 #include <openssl/evp.h>
 #include <openssl/err.h>
 
 #define BUFFER_SIZE 256
 #define KEY_SIZE 32 // for EVP_aes_256_cbc()
+
+void create_key_iv(unsigned char salt[PKCS5_SALT_LEN], unsigned char key[EVP_MAX_KEY_LENGTH], unsigned char iv[EVP_MAX_IV_LENGTH])
+{
+    const char *str = "key45678901234567890123456789012";
+    const int str_len = strlen(str);
+    const int iter = 10000;
+    const EVP_CIPHER *cipher = EVP_aes_256_cbc();
+    const int iklen = EVP_CIPHER_key_length(cipher);
+    const int ivlen = EVP_CIPHER_iv_length(cipher);
+    const EVP_MD *dgst = EVP_sha256();
+    const int islen = PKCS5_SALT_LEN;
+    unsigned char tmpkeyiv[EVP_MAX_KEY_LENGTH + EVP_MAX_IV_LENGTH];
+
+    PKCS5_PBKDF2_HMAC(str, str_len, salt, islen, iter, dgst, iklen+ivlen, tmpkeyiv);
+
+    memcpy(key, tmpkeyiv, iklen);
+    memcpy(iv, tmpkeyiv+iklen, ivlen);
+}
+
 
 /*!
     https://wiki.openssl.org/index.php/EVP_Symmetric_Encryption_and_Decryption
@@ -18,17 +38,17 @@ int main(int argc, char *argv[])
     unsigned char plaintext[BUFFER_SIZE];
     unsigned char ciphertext[BUFFER_SIZE+KEY_SIZE];
     int plaintext_len;
-    unsigned char *key;
-    unsigned char *iv;
+    static const char magic[] = "Salted__";
+    unsigned char salt[PKCS5_SALT_LEN] = "";
+    unsigned char key[EVP_MAX_KEY_LENGTH] = "";
+    unsigned char iv[EVP_MAX_IV_LENGTH] = "";
     FILE * fpIn = NULL;
     FILE * fpOut = NULL;
     unsigned char * infile = NULL;
     unsigned char * outfile = NULL;
+    const EVP_CIPHER *cipher = EVP_aes_256_cbc();
 
     infile = argv[1];
-    outfile = argv[2];
-    key = "iv45678901234567890123456789012";
-    iv  = "iv45678901234567890123456789012";
     outfile = argv[2];
 
     ctx = EVP_CIPHER_CTX_new();
@@ -37,7 +57,15 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    ret = EVP_EncryptInit_ex(ctx, EVP_aes_256_cbc(), NULL, key, iv);
+    /* TODO: quick salt generation */
+    int i;
+    for(i = 0; i < PKCS5_SALT_LEN; i++) {
+        salt[i] = 'a';
+    }
+
+    create_key_iv(salt, key, iv);
+
+    ret = EVP_EncryptInit_ex(ctx, cipher, NULL, key, iv);
     if (ret != 1) {
         EVP_CIPHER_CTX_free(ctx);
         printf("ERROR: EVP_EncryptInit_ex(%s)\n", infile);
@@ -60,6 +88,9 @@ int main(int argc, char *argv[])
         printf("ERROR: fopen(%s)\n", outfile);
         return 1;
     }
+
+    fwrite(magic, 1, sizeof(magic) - 1, fpOut);
+    fwrite(salt, 1, PKCS5_SALT_LEN, fpOut);
 
     while(1){
         size_t n = fread(plaintext, 1, BUFFER_SIZE, fpIn);
