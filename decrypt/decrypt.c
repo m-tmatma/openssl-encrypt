@@ -12,8 +12,8 @@ int main(int argc, char *argv[])
     EVP_CIPHER_CTX *ctx;
     int len;
     int ciphertext_len;
-    unsigned char plaintext[32];
-    unsigned char ciphertext[32*2]; // may need more than 32 bytes for output buffer.
+    unsigned char plaintext[32*2]; // needs more than 32 bytes for output buffer.
+    unsigned char ciphertext[32];
     int plaintext_len;
     unsigned char *key;
     unsigned char *iv;
@@ -34,10 +34,10 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    ret = EVP_EncryptInit_ex(ctx, EVP_aes_256_cbc(), NULL, key, iv);
+    ret = EVP_DecryptInit_ex(ctx, EVP_aes_256_cbc(), NULL, key, iv);
     if (ret != 1) {
         EVP_CIPHER_CTX_free(ctx);
-        printf("ERROR: EVP_EncryptInit_ex(%s)\n", infile);
+        printf("ERROR: EVP_DecryptInit_ex()\n");
         return 1;
     }
 
@@ -57,36 +57,36 @@ int main(int argc, char *argv[])
     }
 
     while(1){
-        size_t n = fread(plaintext, 1, 32, fpIn);
+        size_t n = fread(ciphertext, 1, 32, fpIn);
         if (n > 0 ){
-            plaintext_len = n;
+            ciphertext_len = n;
 
             // Set Output buffer size
-            len = sizeof(ciphertext);
-            ret = EVP_EncryptUpdate(ctx, ciphertext, &len, plaintext, plaintext_len);
+            len = sizeof(plaintext);
+            ret = EVP_DecryptUpdate(ctx, plaintext, &len, ciphertext, ciphertext_len);
             if (ret != 1) {
                 fclose(fpOut);
                 fclose(fpIn);
                 EVP_CIPHER_CTX_free(ctx);
-                printf("ERROR: EVP_EncryptUpdate\n");
+                printf("ERROR: EVP_DecryptUpdate()\n");
                 return 1;
             }
-            fwrite(ciphertext, 1, len, fpOut);
+            fwrite(plaintext, 1, len, fpOut);
             printf("wrote: %u\n", len);
         }
         else {
             // Set Output buffer size
-            len = sizeof(ciphertext);
+            len = sizeof(plaintext);
 
-            ret = EVP_EncryptFinal_ex(ctx, ciphertext, &len);
+            ret = EVP_DecryptFinal_ex(ctx, plaintext, &len);
             if (ret != 1) {
                 fclose(fpOut);
                 fclose(fpIn);
                 EVP_CIPHER_CTX_free(ctx);
-                printf("ERROR: EVP_EncryptFinal_ex\n");
+                printf("ERROR: EVP_DecryptFinal_ex()\n");
                 return 1;
             }
-            fwrite(ciphertext, 1, len, fpOut);
+            fwrite(plaintext, 1, len, fpOut);
             printf("wrote: %u\n", len);
             break;
         }
