@@ -44,6 +44,8 @@ int main(int argc, char *argv[])
         return 1;
     }
 
+    printf("EVP_CIPHER_CTX_key_length() : keysize = %d\n", EVP_CIPHER_CTX_key_length(ctx));
+
     fpIn = fopen(infile, "rb");
     if (fpIn == NULL) {
         EVP_CIPHER_CTX_free(ctx);
