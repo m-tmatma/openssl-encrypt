@@ -3,6 +3,9 @@
 #include <openssl/evp.h>
 #include <openssl/err.h>
 
+#define BUFFER_SIZE 256
+#define KEY_SIZE 32 // for EVP_aes_256_cbc()
+
 /*!
     https://wiki.openssl.org/index.php/EVP_Symmetric_Encryption_and_Decryption
 */
@@ -12,8 +15,10 @@ int main(int argc, char *argv[])
     EVP_CIPHER_CTX *ctx;
     int len;
     int ciphertext_len;
-    unsigned char plaintext[32*2]; // needs more than 32 bytes for output buffer.
-    unsigned char ciphertext[32];
+
+    // https://linux.die.net/man/3/evp_decryptupdate
+    unsigned char plaintext[BUFFER_SIZE+KEY_SIZE];
+    unsigned char ciphertext[BUFFER_SIZE];
     int plaintext_len;
     unsigned char *key;
     unsigned char *iv;
@@ -57,12 +62,20 @@ int main(int argc, char *argv[])
     }
 
     while(1){
-        size_t n = fread(ciphertext, 1, 32, fpIn);
+        size_t n = fread(ciphertext, 1, BUFFER_SIZE, fpIn);
         if (n > 0 ){
             ciphertext_len = n;
 
+            /*
+                Quoted from https://linux.die.net/man/3/evp_decryptupdate
+
+                EVP_DecryptUpdate() should have sufficient room for (inl + cipher_block_size) bytes
+                unless the cipher block size is 1 in which case inl bytes is sufficient.
+            */
+
             // Set Output buffer size
             len = sizeof(plaintext);
+
             ret = EVP_DecryptUpdate(ctx, plaintext, &len, ciphertext, ciphertext_len);
             if (ret != 1) {
                 fclose(fpOut);

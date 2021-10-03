@@ -3,6 +3,9 @@
 #include <openssl/evp.h>
 #include <openssl/err.h>
 
+#define BUFFER_SIZE 256
+#define KEY_SIZE 32 // for EVP_aes_256_cbc()
+
 /*!
     https://wiki.openssl.org/index.php/EVP_Symmetric_Encryption_and_Decryption
 */
@@ -12,8 +15,8 @@ int main(int argc, char *argv[])
     EVP_CIPHER_CTX *ctx;
     int len;
     int ciphertext_len;
-    unsigned char plaintext[32];
-    unsigned char ciphertext[32*2]; // may need more than 32 bytes for output buffer.
+    unsigned char plaintext[BUFFER_SIZE];
+    unsigned char ciphertext[BUFFER_SIZE+KEY_SIZE];
     int plaintext_len;
     unsigned char *key;
     unsigned char *iv;
@@ -57,12 +60,23 @@ int main(int argc, char *argv[])
     }
 
     while(1){
-        size_t n = fread(plaintext, 1, 32, fpIn);
+        size_t n = fread(plaintext, 1, BUFFER_SIZE, fpIn);
         if (n > 0 ){
             plaintext_len = n;
 
+            /*
+                Quoted from https://linux.die.net/man/3/evp_encryptupdate
+
+                EVP_EncryptUpdate() encrypts inl bytes from the buffer in and writes the encrypted version to out.
+                This function can be called multiple times to encrypt successive blocks of data.
+                The amount of data written depends on the block alignment of the encrypted data:
+                as a result the amount of data written may be anything from zero bytes to (inl + cipher_block_size - 1)
+                so outl should contain sufficient room. The actual number of bytes written is placed in outl.
+            */
+
             // Set Output buffer size
             len = sizeof(ciphertext);
+
             ret = EVP_EncryptUpdate(ctx, ciphertext, &len, plaintext, plaintext_len);
             if (ret != 1) {
                 fclose(fpOut);
