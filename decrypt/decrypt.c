@@ -12,7 +12,7 @@ int main(int argc, char *argv[])
     EVP_CIPHER_CTX *ctx;
     int len;
     int ciphertext_len;
-    unsigned char plaintext[32];
+    unsigned char plaintext[32*2]; // needs more than 32 bytes for output buffer.
     unsigned char ciphertext[32];
     int plaintext_len;
     unsigned char *key;
@@ -61,6 +61,8 @@ int main(int argc, char *argv[])
         if (n > 0 ){
             ciphertext_len = n;
 
+            // Set Output buffer size
+            len = sizeof(plaintext);
             ret = EVP_DecryptUpdate(ctx, plaintext, &len, ciphertext, ciphertext_len);
             if (ret != 1) {
                 fclose(fpOut);
@@ -73,6 +75,9 @@ int main(int argc, char *argv[])
             printf("wrote: %u\n", len);
         }
         else {
+            // Set Output buffer size
+            len = sizeof(plaintext);
+
             ret = EVP_DecryptFinal_ex(ctx, plaintext, &len);
             if (ret != 1) {
                 fclose(fpOut);
