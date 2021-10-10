@@ -3,6 +3,7 @@
 #include <openssl/conf.h>
 #include <openssl/evp.h>
 #include <openssl/err.h>
+#include <openssl/rand.h>
 
 #define BUFFER_SIZE 256
 #define KEY_SIZE 32 // for EVP_aes_256_cbc()
