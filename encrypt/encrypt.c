@@ -61,10 +61,7 @@ int main(int argc, char *argv[])
     /* salt generation */
     int rc = RAND_bytes(salt, sizeof(salt));
     if(rc != 1) {
-        int i;
-        for(i = 0; i < PKCS5_SALT_LEN; i++) {
-            salt[i] = 'a';
-        }
+        return 1;
     }
 
     create_key_iv(salt, key, iv);
