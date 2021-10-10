@@ -3,6 +3,7 @@
 #include <openssl/conf.h>
 #include <openssl/evp.h>
 #include <openssl/err.h>
+#include <openssl/rand.h>
 
 #define BUFFER_SIZE 256
 #define KEY_SIZE 32 // for EVP_aes_256_cbc()
@@ -57,10 +58,10 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    /* TODO: quick salt generation */
-    int i;
-    for(i = 0; i < PKCS5_SALT_LEN; i++) {
-        salt[i] = 'a';
+    /* salt generation */
+    int rc = RAND_bytes(salt, sizeof(salt));
+    if(rc != 1) {
+        return 1;
     }
 
     create_key_iv(salt, key, iv);
